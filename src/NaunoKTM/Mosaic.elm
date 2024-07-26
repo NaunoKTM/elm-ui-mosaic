@@ -1,16 +1,29 @@
+module NaunoKTM.Mosaic exposing
+    ( DisplayConfig
+    , Picture
+    , PictureSize
+    , Modal(..)
+    , KeyBoardKey(..)
+    , displayMosaic
+    , defaultSizeConfig
+    , findPicture
+    , displayModal
+    , keyDecoder
+    )
 
-module NaunoKTM.Mosaic exposing (DisplayConfig, Picture, displayPicturesGenericPhone, defaultSizeConfig)
-
-{-| This library provides a way to create mosaic-style image layouts in Elm applications.
+{-| This library provides a way to create responsive mosaic layouts with a modal in Elm applications using elm-ui.
 
 # Types
-@docs DisplayConfig, Picture
+@docs DisplayConfig, Picture, PictureSize, Modal, KeyBoardKey
 
 # Configuration
 @docs defaultSizeConfig
 
 # Display Functions
-@docs displayPicturesGenericPhone
+@docs displayMosaic, displayModal
+
+# Utility Functions
+@docs findPicture, keyDecoder
 
 -}
 
@@ -19,6 +32,8 @@ import Element.Background as Background
 import Element.Events exposing (onClick)
 import Element.Font as Font
 import Html.Attributes as HA
+import Json.Decode as D
+import List.Extra as List
 
 
 {-| Configuration for the display of the mosaic.
@@ -34,17 +49,34 @@ type alias DisplayConfig =
 -}
 type alias Picture =
     { id : String
-    , size : { width : Int, height : Int }
+    , size : PictureSize
     }
 
 
-{-| Default configuration for the mosaic display.
+{-| Size of a picture.
+-}
+type alias PictureSize =
+    { width : Int
+    , height : Int
+    }
 
-    defaultSizeConfig =
-        { baseWidth = 350
-        , baseHeight = 500
-        , spacingSize = 8
-        }
+
+{-| Modal type for opening pictures.
+-}
+type Modal
+    = PictureOpen Int Int
+
+
+{-| Keyboard key type for navigation.
+-}
+type KeyBoardKey
+    = Left
+    | Right
+    | Escape
+    | Other
+
+
+{-| Default configuration for the mosaic display.
 -}
 defaultSizeConfig : DisplayConfig
 defaultSizeConfig =
@@ -54,13 +86,47 @@ defaultSizeConfig =
     }
 
 
-{-| Display a mosaic of pictures optimized for phone screens.
-
-    displayPicturesGenericPhone defaultSizeConfig myPictures 0
-
+{-| Display a mosaic of pictures.
 -}
-displayPicturesGenericPhone : DisplayConfig -> List Picture -> Int -> Element msg
-displayPicturesGenericPhone config pictures listIndex =
-    -- Your implementation here
-    text "Implement me!"
+displayMosaic : DisplayConfig -> List Picture -> Int -> Element msg
+displayMosaic config pictures listIndex =
+    -- Implementation here
+    text "Implement displayMosaic"
 
+
+{-| Find a picture in a list by its index.
+-}
+findPicture : List Picture -> Int -> Maybe Picture
+findPicture pictures pictureId =
+    List.getAt pictureId pictures
+
+
+{-| Display a modal with the selected picture.
+-}
+displayModal : Modal -> { deviceWidth : Int, deviceHeight : Int } -> Element msg
+displayModal modal model =
+    -- Implementation here
+    text "Implement displayModal"
+
+
+{-| Decoder for keyboard events.
+-}
+keyDecoder : D.Decoder KeyBoardKey
+keyDecoder =
+    D.map toDirection (D.field "key" D.string)
+
+
+toDirection : String -> KeyBoardKey
+toDirection string =
+    case string of
+        "ArrowLeft" ->
+            Left
+
+        "ArrowRight" ->
+            Right
+
+        "Escape" ->
+            Escape
+
+        _ ->
+            Other
