@@ -1,8 +1,7 @@
-
 {
     "type": "package",
-    "name": "NaunoKTM/mosaic",
-    "summary": "Create mosaic-style image layouts in Elm",
+    "name": "NaunoKTM/elm-ui-mosaic",
+    "summary": "Create responsive mosaic layouts with modals using elm-ui",
     "license": "BSD-3-Clause",
     "version": "1.0.0",
     "exposed-modules": [
@@ -12,8 +11,9 @@
     "dependencies": {
         "elm/core": "1.0.0 <= v < 2.0.0",
         "elm/html": "1.0.0 <= v < 2.0.0",
-        "mdgriffith/elm-ui": "1.1.0 <= v < 2.0.0"
+        "elm/json": "1.1.0 <= v < 2.0.0",
+        "mdgriffith/elm-ui": "1.1.0 <= v < 2.0.0",
+        "elm-community/list-extra": "8.0.0 <= v < 9.0.0"
     },
     "test-dependencies": {}
 }
-
