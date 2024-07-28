@@ -3,7 +3,7 @@ module Mosaic exposing
     , defaultSizeConfig
     , displayModal
     , findPicture, keyDecoder
-    , Mosaic, init, update, viewMosaic
+    , Mosaic, init, subscriptions, update, updateScreenSize, viewMosaic
     )
 
 {-| This library provides a way to create responsive mosaic layouts with a modal in Elm applications using elm-ui.
@@ -30,6 +30,7 @@ module Mosaic exposing
 
 -}
 
+import Browser.Events
 import Element exposing (..)
 import Element.Background as Background
 import Element.Events exposing (onClick)
@@ -86,6 +87,7 @@ type Msg
     = NoOpMsg
     | ModalOpen Modal
     | ModalExit
+    | ReceiveKeyboardEvent KeyBoardKey
 
 
 {-| Default configuration for the mosaic display.
@@ -98,15 +100,68 @@ defaultSizeConfig =
     }
 
 
+type alias Mosaic =
+    { pictures : List Picture
+    , modal : Maybe Modal
+    , config : DisplayConfig
+    , screenSize : { deviceWidth : Int, deviceHeight : Int }
+    }
+
+
+{-| Initialize a new Mosaic with the given display configuration and list of pictures.
+-}
+init : DisplayConfig -> List Picture -> Mosaic
+init displayConfig pictures =
+    { pictures = sortByHeight pictures, modal = Nothing, config = displayConfig, screenSize = { deviceWidth = 0, deviceHeight = 0 } }
+
+
+{-| Define subscriptions for the keyboard events.
+-}
+subscriptions : Mosaic -> Sub Msg
+subscriptions _ =
+    Browser.Events.onKeyDown (D.map ReceiveKeyboardEvent keyDecoder)
+
+
+{-| Update the Mosaic model based on the received message.
+-}
+update : Msg -> Mosaic -> Mosaic
+update msg model =
+    case msg of
+        ModalOpen modal ->
+            { model | modal = Just modal }
+
+        ModalExit ->
+            { model | modal = Nothing }
+
+        NoOpMsg ->
+            model
+
+        ReceiveKeyboardEvent direction ->
+            case ( direction, model.modal ) of
+                ( Left, Just (PictureOpen 0) ) ->
+                    model
+
+                ( Left, Just (PictureOpen index) ) ->
+                    { model | modal = Just <| PictureOpen (index - 1) }
+
+                ( Right, Just (PictureOpen index) ) ->
+                    if index < List.length model.pictures - 1 then
+                        { model | modal = Just <| PictureOpen (index + 1) }
+
+                    else
+                        model
+
+                ( Escape, _ ) ->
+                    { model | modal = Nothing }
+
+                _ ->
+                    model
+
+
 {-| Display a mosaic of pictures.
-
-    viewMosaic defaultSizeConfig myPictures
-
 -}
 viewMosaic : Mosaic -> Element Msg
 viewMosaic { config, pictures } =
-    -- viewMosaic : DisplayConfig -> List Picture -> Int -> Element Msg
-    -- viewMosaic config pictures listIndex =
     let
         fixConfig =
             makeItComp config
@@ -236,9 +291,6 @@ viewMosaic { config, pictures } =
 
 
 {-| Find a picture in a list by its index.
-
-    findPicture myPictures 2
-
 -}
 findPicture : List Picture -> Int -> Maybe Picture
 findPicture pictures pictureId =
@@ -247,11 +299,11 @@ findPicture pictures pictureId =
 
 {-| Display a modal with the selected picture.
 
-    displayModal (PictureOpen 2) model
+`inFront <| Mosaic.displayModal model.mosaic`
 
 -}
-displayModal : Mosaic -> { a | deviceWidth : Int, deviceHeight : Int } -> Element Msg
-displayModal { modal, pictures } model =
+displayModal : Mosaic -> Element Msg
+displayModal { modal, pictures, screenSize } =
     case modal of
         Nothing ->
             none
@@ -276,10 +328,10 @@ displayModal { modal, pictures } model =
                                 let
                                     -- Calculate available space
                                     availableWidth =
-                                        model.deviceWidth - 300
+                                        screenSize.deviceWidth - 28
 
                                     availableHeight =
-                                        model.deviceHeight - 80
+                                        screenSize.deviceHeight - 80
 
                                     -- Calculate scaling factor
                                     widthScale =
@@ -377,6 +429,13 @@ displayModal { modal, pictures } model =
 keyDecoder : D.Decoder KeyBoardKey
 keyDecoder =
     D.map toDirection (D.field "key" D.string)
+
+
+{-| Update the screen size in the Mosaic model.
+-}
+updateScreenSize : { deviceWidth : Int, deviceHeight : Int } -> Mosaic -> Mosaic
+updateScreenSize screenSize model =
+    { model | screenSize = screenSize }
 
 
 
@@ -513,51 +572,3 @@ toDirection string =
 
         _ ->
             Other
-
-
-
--- getListFromIndex : Int -> List Picture
--- getListFromIndex index =
---     case index of
---         0 ->
---             sortByHeight firstList
---         _ ->
---             []
-
-
-firstList : List Picture
-firstList =
-    [ Picture "1.jpg" { width = 880, height = 609 }
-    , Picture "2.jpg" { width = 1200, height = 800 }
-    , Picture "3.jpg" { width = 845, height = 321 }
-    , Picture "4.jpg" { width = 1080, height = 474 }
-    , Picture "5.jpg" { width = 1024, height = 576 }
-    , Picture "6.jpg" { width = 1080, height = 474 }
-    , Picture "7.jpg" { width = 1024, height = 576 }
-    , Picture "8.jpg" { width = 1280, height = 853 }
-    ]
-
-
-type alias Mosaic =
-    { pictures : List Picture
-    , modal : Maybe Modal
-    , config : DisplayConfig
-    }
-
-
-init : DisplayConfig -> List Picture -> Mosaic
-init displayConfig pictures =
-    { pictures = sortByHeight pictures, modal = Nothing, config = displayConfig }
-
-
-update : Msg -> Mosaic -> Mosaic
-update msg model =
-    case msg of
-        ModalOpen modal ->
-            { model | modal = Just modal }
-
-        ModalExit ->
-            { model | modal = Nothing }
-
-        NoOpMsg ->
-            model
