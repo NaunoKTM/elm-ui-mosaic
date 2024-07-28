@@ -4,7 +4,13 @@ This library provides a way to create responsive mosaic layouts with modals in E
 
 ## Installation
 
-    elm install NaunoKTM/elm-ui-mosaic
+```bash
+elm install NaunoKTM/elm-ui-mosaic
+```
+or
+```bash
+lamdera install NaunoKTM/elm-ui-mosaic
+```
 
 ## Usage
 
@@ -45,6 +51,9 @@ update msg model =
     case msg of
         MosaicMsg subMsg ->
             ( { model | mosaic = Mosaic.update subMsg model.mosaic }, Cmd.none )
+
+        GotNewScreenSize size ->
+            ( { model | mosaic = Mosaic.updateScreenSize size model.mosaic }, Cmd.none )
         -- Handle other messages...
 
 -- Add the view to your layout
@@ -61,7 +70,7 @@ view model =
                 , height fill
                 , centerX
                 , centerY
-                , paddingEach { top = 32, bottom = 32, left = 32, right = 32 }
+                , padding 32
                 ]
                 [ Element.map MosaicMsg <|
                     Mosaic.viewMosaic model.mosaic
@@ -75,7 +84,7 @@ subscriptions model =
     Sub.map MosaicMsg (Mosaic.subscriptions model.mosaic)
 ```
 
-# Live exemple
+# Live example
 
 https://naunoktm-mosaic.lamdera.app/
 

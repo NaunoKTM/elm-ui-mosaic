@@ -1,8 +1,19 @@
 module Mosaic exposing
-    ( DisplayConfig, Picture, PictureSize, Msg(..)
+    ( DisplayConfig
+    , Picture
+    , PictureSize
+    , Msg(..)
+    , Mosaic
+    , Modal
+    , KeyBoardKey
+    , init
+    , subscriptions
+    , update
     , defaultSizeConfig
+    , viewMosaic
     , displayModal
-    , Mosaic, init, subscriptions, takeFullscreenSize, update, updateScreenSize, viewMosaic
+    , updateScreenSize
+    , takeFullscreenSize
     )
 
 {-| This library provides a way to create responsive mosaic layouts with a modal in Elm applications using elm-ui.
@@ -10,7 +21,20 @@ module Mosaic exposing
 
 # Types
 
-@docs DisplayConfig, Picture, PictureSize, Modal, KeyBoardKey, Msg
+@docs DisplayConfig
+@docs Picture
+@docs PictureSize
+@docs Msg
+@docs Mosaic
+@docs Modal
+@docs KeyBoardKey
+
+
+# Basics
+
+@docs init
+@docs subscriptions
+@docs update
 
 
 # Configuration
@@ -20,17 +44,19 @@ module Mosaic exposing
 
 # Display Functions
 
-@docs displayMosaic, displayModal
+@docs viewMosaic
+@docs displayModal
 
 
 # Utility Functions
 
-@docs findPicture, keyDecoder
+@docs updateScreenSize
+@docs takeFullscreenSize
 
 -}
 
 import Browser.Events
-import Element exposing (..)
+import Element exposing (Attribute, Element, alignTop, centerX, centerY, clip, column, el, fill, height, htmlAttribute, image, inFront, moveUp, none, paddingEach, pointer, px, rgb, rgba, row, spacing, text, width)
 import Element.Background as Background
 import Element.Events exposing (onClick)
 import Element.Font as Font
@@ -94,8 +120,8 @@ type Msg
 -}
 defaultSizeConfig : DisplayConfig
 defaultSizeConfig =
-    { baseWidth = 500
-    , baseHeight = 350
+    { baseWidth = 350
+    , baseHeight = 500
     , spacingSize = 8
     }
 
@@ -182,15 +208,18 @@ update msg model =
 viewMosaic : Mosaic -> Element Msg
 viewMosaic { config, pictures } =
     let
+        fixConfig : DisplayConfig
         fixConfig =
             makeItComp config
 
+        displaySizeOfList : List a -> Element msg
         displaySizeOfList list =
             el [ width fill, height fill, Background.color (rgba 0 0 0 0.4), letClickThrough ] <|
                 el [ centerY, centerX, Font.color (rgb 255 255 255), Font.size 32 ] <|
                     text <|
                         ("+" ++ String.fromInt (List.length list))
 
+        sortedPictures : List Picture
         sortedPictures =
             sortByHeight pictures
 
@@ -209,9 +238,11 @@ viewMosaic { config, pictures } =
 
                 [ picture1, picture2 ] ->
                     let
+                        w : Int
                         w =
                             round (toFloat fixConfig.baseWidth * 0.5)
 
+                        h : Int
                         h =
                             round (calculateHeight 2 1)
                     in
@@ -222,12 +253,15 @@ viewMosaic { config, pictures } =
 
                 [ picture1, picture2, picture3 ] ->
                     let
+                        w : Int
                         w =
                             round (toFloat fixConfig.baseWidth * 0.5)
 
+                        h1 : Int
                         h1 =
                             fixConfig.baseHeight
 
+                        h2 : Int
                         h2 =
                             round (calculateHeight 2 1)
                     in
@@ -242,9 +276,11 @@ viewMosaic { config, pictures } =
 
                 [ picture1, picture2, picture3, picture4 ] ->
                     let
+                        w : Int
                         w =
                             round (toFloat fixConfig.baseWidth * 0.5)
 
+                        h : Int
                         h =
                             round (calculateHeight 2 1)
                     in
@@ -261,12 +297,15 @@ viewMosaic { config, pictures } =
 
                 [ picture1, picture2, picture3, picture4, picture5 ] ->
                     let
+                        w : Int
                         w =
                             round (toFloat fixConfig.baseWidth * 0.5)
 
+                        h1 : Int
                         h1 =
                             round (calculateHeight 2 1)
 
+                        h2 : Int
                         h2 =
                             round (calculateHeight 3 2)
                     in
@@ -284,12 +323,15 @@ viewMosaic { config, pictures } =
 
                 picture1 :: picture2 :: picture3 :: picture4 :: picture5 :: restOfList ->
                     let
+                        w : Int
                         w =
                             round (toFloat fixConfig.baseWidth * 0.5)
 
+                        h1 : Int
                         h1 =
                             round (calculateHeight 2 1)
 
+                        h2 : Int
                         h2 =
                             round (calculateHeight 3 2)
                     in
@@ -334,6 +376,7 @@ displayModal { modal, pictures, screenSize } =
                             (\picture ->
                                 let
                                     -- Calculate available space
+                                    availableWidth : Int
                                     availableWidth =
                                         if showNavigationBelow then
                                             screenSize.deviceWidth - 28
@@ -341,42 +384,36 @@ displayModal { modal, pictures, screenSize } =
                                         else
                                             screenSize.deviceWidth - 300
 
+                                    availableHeight : Int
                                     availableHeight =
                                         screenSize.deviceHeight - 80
 
                                     -- Calculate scaling factor
+                                    widthScale : Float
                                     widthScale =
                                         toFloat availableWidth / toFloat picture.size.width
 
+                                    heightScale : Float
                                     heightScale =
                                         toFloat availableHeight / toFloat picture.size.height
 
+                                    scale : Float
                                     scale =
                                         min widthScale heightScale
 
                                     -- Calculate final dimensions
+                                    finalWidth : Int
                                     finalWidth =
                                         round (toFloat picture.size.width * scale)
 
+                                    finalHeight : Int
                                     finalHeight =
                                         round (toFloat picture.size.height * scale)
 
                                     -- Determine if we need to show navigation below
+                                    showNavigationBelow : Bool
                                     showNavigationBelow =
                                         screenSize.deviceWidth < 1120
-
-                                    navigationRow =
-                                        row
-                                            [ centerX
-                                            , spacing 32
-                                            ]
-                                            [ previousPic pictureId
-                                            , if pictureId < List.length pictures - 1 then
-                                                nextPic pictureId
-
-                                              else
-                                                el [ width (px 100), height fill ] none
-                                            ]
                                 in
                                 column
                                     [ centerX
@@ -385,6 +422,21 @@ displayModal { modal, pictures, screenSize } =
                                     , height fill
                                     ]
                                     [ if showNavigationBelow then
+                                        let
+                                            navigationRow : Element Msg
+                                            navigationRow =
+                                                row
+                                                    [ centerX
+                                                    , spacing 32
+                                                    ]
+                                                    [ previousPic pictureId
+                                                    , if pictureId < List.length pictures - 1 then
+                                                        nextPic pictureId
+
+                                                      else
+                                                        el [ width (px 100), height fill ] none
+                                                    ]
+                                        in
                                         column [ width fill, height fill ]
                                             [ el
                                                 [ centerX
@@ -447,6 +499,7 @@ updateScreenSize screenSize model =
 onePicture : Int -> Int -> Picture -> Int -> Element Msg
 onePicture blockWidth blockHeight picture id =
     let
+        attrs : List (Attribute msg)
         attrs =
             if toFloat picture.size.height / toFloat blockHeight < toFloat picture.size.width / toFloat blockWidth then
                 [ height <| px blockHeight ]
@@ -487,21 +540,11 @@ keyDecoder =
 
 
 makeItComp : DisplayConfig -> DisplayConfig
-makeItComp displayConfig =
-    let
-        x =
-            displayConfig.spacingSize
-
-        y =
-            displayConfig.baseHeight
-
-        n =
-            ((y - 2 * x) + 5) // 6
-
-        newY =
-            max y (6 * n + 2 * x)
-    in
-    { displayConfig | baseHeight = newY }
+makeItComp ({ spacingSize, baseHeight } as displayConfig) =
+    { displayConfig
+        | baseHeight =
+            max baseHeight (6 * (((baseHeight - 2 * spacingSize) + 5) // 6) + 2 * spacingSize)
+    }
 
 
 sortByHeight : List Picture -> List Picture
