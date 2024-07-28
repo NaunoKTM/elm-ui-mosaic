@@ -1,8 +1,9 @@
-module NaunoKTM.Mosaic exposing
+module Mosaic exposing
     ( DisplayConfig, Picture, PictureSize, Modal(..), KeyBoardKey(..), Msg(..)
     , defaultSizeConfig
-    , displayMosaic, displayModal
+    , displayModal
     , findPicture, keyDecoder
+    , Mosaic, init, subscriptions, update, updateScreenSize, viewMosaic
     )
 
 {-| This library provides a way to create responsive mosaic layouts with a modal in Elm applications using elm-ui.
@@ -29,6 +30,7 @@ module NaunoKTM.Mosaic exposing
 
 -}
 
+import Browser.Events
 import Element exposing (..)
 import Element.Background as Background
 import Element.Events exposing (onClick)
@@ -67,7 +69,7 @@ type alias PictureSize =
 {-| Modal type for opening pictures.
 -}
 type Modal
-    = PictureOpen Int Int
+    = PictureOpen Int
 
 
 {-| Keyboard key type for navigation.
@@ -85,6 +87,7 @@ type Msg
     = NoOpMsg
     | ModalOpen Modal
     | ModalExit
+    | ReceiveKeyboardEvent KeyBoardKey
 
 
 {-| Default configuration for the mosaic display.
@@ -97,13 +100,68 @@ defaultSizeConfig =
     }
 
 
-{-| Display a mosaic of pictures.
+type alias Mosaic =
+    { pictures : List Picture
+    , modal : Maybe Modal
+    , config : DisplayConfig
+    , screenSize : { deviceWidth : Int, deviceHeight : Int }
+    }
 
-    displayMosaic defaultSizeConfig myPictures 0
 
+{-| Initialize a new Mosaic with the given display configuration and list of pictures.
 -}
-displayMosaic : DisplayConfig -> List Picture -> Int -> Element Msg
-displayMosaic config pictures listIndex =
+init : DisplayConfig -> List Picture -> Mosaic
+init displayConfig pictures =
+    { pictures = sortByHeight pictures, modal = Nothing, config = displayConfig, screenSize = { deviceWidth = 0, deviceHeight = 0 } }
+
+
+{-| Define subscriptions for the keyboard events.
+-}
+subscriptions : Mosaic -> Sub Msg
+subscriptions _ =
+    Browser.Events.onKeyDown (D.map ReceiveKeyboardEvent keyDecoder)
+
+
+{-| Update the Mosaic model based on the received message.
+-}
+update : Msg -> Mosaic -> Mosaic
+update msg model =
+    case msg of
+        ModalOpen modal ->
+            { model | modal = Just modal }
+
+        ModalExit ->
+            { model | modal = Nothing }
+
+        NoOpMsg ->
+            model
+
+        ReceiveKeyboardEvent direction ->
+            case ( direction, model.modal ) of
+                ( Left, Just (PictureOpen 0) ) ->
+                    model
+
+                ( Left, Just (PictureOpen index) ) ->
+                    { model | modal = Just <| PictureOpen (index - 1) }
+
+                ( Right, Just (PictureOpen index) ) ->
+                    if index < List.length model.pictures - 1 then
+                        { model | modal = Just <| PictureOpen (index + 1) }
+
+                    else
+                        model
+
+                ( Escape, _ ) ->
+                    { model | modal = Nothing }
+
+                _ ->
+                    model
+
+
+{-| Display a mosaic of pictures.
+-}
+viewMosaic : Mosaic -> Element Msg
+viewMosaic { config, pictures } =
     let
         fixConfig =
             makeItComp config
@@ -128,7 +186,7 @@ displayMosaic config pictures listIndex =
                     none
 
                 [ picture ] ->
-                    onePicture fixConfig.baseWidth fixConfig.baseHeight picture listIndex 0
+                    onePicture fixConfig.baseWidth fixConfig.baseHeight picture 0
 
                 [ picture1, picture2 ] ->
                     let
@@ -139,8 +197,8 @@ displayMosaic config pictures listIndex =
                             round (calculateHeight 2 1)
                     in
                     row [ spacing fixConfig.spacingSize ]
-                        [ onePicture w h picture1 listIndex 0
-                        , onePicture w h picture2 listIndex 1
+                        [ onePicture w h picture1 0
+                        , onePicture w h picture2 1
                         ]
 
                 [ picture1, picture2, picture3 ] ->
@@ -156,10 +214,10 @@ displayMosaic config pictures listIndex =
                     in
                     row [ spacing fixConfig.spacingSize ]
                         [ column [ spacing fixConfig.spacingSize ]
-                            [ onePicture w h1 picture1 listIndex 0 ]
+                            [ onePicture w h1 picture1 0 ]
                         , column [ spacing fixConfig.spacingSize ]
-                            [ onePicture w h2 picture2 listIndex 1
-                            , onePicture w h2 picture3 listIndex 2
+                            [ onePicture w h2 picture2 1
+                            , onePicture w h2 picture3 2
                             ]
                         ]
 
@@ -173,12 +231,12 @@ displayMosaic config pictures listIndex =
                     in
                     row [ spacing fixConfig.spacingSize ]
                         [ column [ spacing fixConfig.spacingSize ]
-                            [ onePicture w h picture1 listIndex 0
-                            , onePicture w h picture2 listIndex 1
+                            [ onePicture w h picture1 0
+                            , onePicture w h picture2 1
                             ]
                         , column [ spacing fixConfig.spacingSize ]
-                            [ onePicture w h picture3 listIndex 2
-                            , onePicture w h picture4 listIndex 3
+                            [ onePicture w h picture3 2
+                            , onePicture w h picture4 3
                             ]
                         ]
 
@@ -195,13 +253,13 @@ displayMosaic config pictures listIndex =
                     in
                     row [ spacing fixConfig.spacingSize ]
                         [ column [ spacing fixConfig.spacingSize ]
-                            [ onePicture w h1 picture1 listIndex 0
-                            , onePicture w h1 picture2 listIndex 1
+                            [ onePicture w h1 picture1 0
+                            , onePicture w h1 picture2 1
                             ]
                         , column [ spacing fixConfig.spacingSize ]
-                            [ onePicture w h2 picture3 listIndex 2
-                            , onePicture w h2 picture4 listIndex 3
-                            , onePicture w h2 picture5 listIndex 4
+                            [ onePicture w h2 picture3 2
+                            , onePicture w h2 picture4 3
+                            , onePicture w h2 picture5 4
                             ]
                         ]
 
@@ -218,14 +276,14 @@ displayMosaic config pictures listIndex =
                     in
                     row [ spacing fixConfig.spacingSize ]
                         [ column [ spacing fixConfig.spacingSize, alignTop ]
-                            [ onePicture w h1 picture1 listIndex 0
-                            , onePicture w h1 picture2 listIndex 1
+                            [ onePicture w h1 picture1 0
+                            , onePicture w h1 picture2 1
                             ]
                         , column [ spacing fixConfig.spacingSize, alignTop ]
-                            [ onePicture w h2 picture3 listIndex 2
-                            , onePicture w h2 picture4 listIndex 3
+                            [ onePicture w h2 picture3 2
+                            , onePicture w h2 picture4 3
                             , el [ inFront <| displaySizeOfList restOfList ] <|
-                                onePicture w h2 picture5 listIndex 4
+                                onePicture w h2 picture5 4
                             ]
                         ]
     in
@@ -233,9 +291,6 @@ displayMosaic config pictures listIndex =
 
 
 {-| Find a picture in a list by its index.
-
-    findPicture myPictures 2
-
 -}
 findPicture : List Picture -> Int -> Maybe Picture
 findPicture pictures pictureId =
@@ -244,39 +299,39 @@ findPicture pictures pictureId =
 
 {-| Display a modal with the selected picture.
 
-    displayModal (PictureOpen 0 2) model
+`inFront <| Mosaic.displayModal model.mosaic`
 
 -}
-displayModal : Modal -> { a | deviceWidth : Int, deviceHeight : Int } -> Element Msg
-displayModal modal model =
-    overlayEl <|
-        el
-            [ width fill
-            , height fill
-            , centerX
-            , onClick ModalExit
-            , clip
-            ]
-        <|
-            case modal of
-                PictureOpen listIndex pictureId ->
+displayModal : Mosaic -> Element Msg
+displayModal { modal, pictures, screenSize } =
+    case modal of
+        Nothing ->
+            none
+
+        Just (PictureOpen pictureId) ->
+            overlayEl <|
+                el
+                    [ width fill
+                    , height fill
+                    , centerX
+                    , onClick ModalExit
+                    , clip
+                    ]
+                <|
                     let
                         maybePicture =
-                            findPicture (getListFromIndex listIndex) pictureId
+                            findPicture pictures pictureId
                     in
                     Maybe.withDefault none <|
                         Maybe.map
                             (\picture ->
                                 let
-                                    pictures =
-                                        getListFromIndex listIndex
-
                                     -- Calculate available space
                                     availableWidth =
-                                        model.deviceWidth - 300
+                                        screenSize.deviceWidth - 28
 
                                     availableHeight =
-                                        model.deviceHeight - 80
+                                        screenSize.deviceHeight - 80
 
                                     -- Calculate scaling factor
                                     widthScale =
@@ -304,8 +359,12 @@ displayModal modal model =
                                             [ centerX
                                             , spacing 32
                                             ]
-                                            [ previousPic listIndex pictureId
-                                            , nextPic listIndex pictureId
+                                            [ previousPic pictureId
+                                            , if pictureId < List.length pictures - 1 then
+                                                nextPic pictureId
+
+                                              else
+                                                none
                                             ]
                                 in
                                 column
@@ -335,7 +394,7 @@ displayModal modal model =
 
                                       else
                                         row [ width fill, height fill ]
-                                            [ el [ width (px 100), height fill ] (previousPic listIndex pictureId)
+                                            [ el [ width (px 100), height fill ] (previousPic pictureId)
                                             , el
                                                 [ centerY
                                                 , centerX
@@ -352,7 +411,7 @@ displayModal modal model =
                                                     { description = picture.id, src = picture.id }
                                                 )
                                             , if pictureId < List.length pictures - 1 then
-                                                el [ width (px 100), height fill ] (nextPic listIndex pictureId)
+                                                el [ width (px 100), height fill ] (nextPic pictureId)
 
                                               else
                                                 el [ width (px 100), height fill ] none
@@ -372,12 +431,19 @@ keyDecoder =
     D.map toDirection (D.field "key" D.string)
 
 
+{-| Update the screen size in the Mosaic model.
+-}
+updateScreenSize : { deviceWidth : Int, deviceHeight : Int } -> Mosaic -> Mosaic
+updateScreenSize screenSize model =
+    { model | screenSize = screenSize }
+
+
 
 -- Helper functions (not exposed)
 
 
-onePicture : Int -> Int -> Picture -> Int -> Int -> Element Msg
-onePicture blockWidth blockHeight picture listIndex id =
+onePicture : Int -> Int -> Picture -> Int -> Element Msg
+onePicture blockWidth blockHeight picture id =
     let
         attrs =
             if toFloat picture.size.height / toFloat blockHeight < toFloat picture.size.width / toFloat blockWidth then
@@ -388,7 +454,7 @@ onePicture blockWidth blockHeight picture listIndex id =
     in
     el [ width <| px blockWidth, height <| px blockHeight, clip ] <|
         el
-            [ onClick <| ModalOpen <| PictureOpen listIndex id
+            [ onClick <| ModalOpen <| PictureOpen id
             , pointer
             , htmlAttribute <| HA.id <| picture.id
             , centerX
@@ -424,8 +490,8 @@ sortByHeight pictures =
     List.sortWith (\pic1 pic2 -> compare pic2.size.height pic1.size.height) pictures
 
 
-previousPic : Int -> Int -> Element Msg
-previousPic listIndex index =
+previousPic : Int -> Element Msg
+previousPic index =
     if index == 0 then
         el [ width <| px 100, height fill ] none
 
@@ -438,30 +504,26 @@ previousPic listIndex index =
             , Font.size 67
             , moveUp 3.5
             , pointer
-            , greedyOnClick <| ModalOpen <| PictureOpen listIndex (index - 1)
+            , greedyOnClick <| ModalOpen <| PictureOpen (index - 1)
             ]
         <|
             text "<"
 
 
-nextPic : Int -> Int -> Element Msg
-nextPic listIndex index =
-    if index == List.length (getListFromIndex listIndex) - 1 then
-        el [ width <| px 100, height fill ] none
-
-    else
-        el
-            [ width <| px 100
-            , paddingEach { edges | right = 30, left = 30 }
-            , centerY
-            , Font.color (rgb 218 212 203)
-            , Font.size 67
-            , moveUp 3.5
-            , pointer
-            , greedyOnClick <| ModalOpen <| PictureOpen listIndex (index + 1)
-            ]
-        <|
-            text ">"
+nextPic : Int -> Element Msg
+nextPic index =
+    el
+        [ width <| px 100
+        , paddingEach { edges | right = 30, left = 30 }
+        , centerY
+        , Font.color (rgb 218 212 203)
+        , Font.size 67
+        , moveUp 3.5
+        , pointer
+        , greedyOnClick <| ModalOpen <| PictureOpen (index + 1)
+        ]
+    <|
+        text ">"
 
 
 overlayEl : Element msg -> Element msg
@@ -510,26 +572,3 @@ toDirection string =
 
         _ ->
             Other
-
-
-getListFromIndex : Int -> List Picture
-getListFromIndex index =
-    case index of
-        0 ->
-            sortByHeight firstList
-
-        _ ->
-            []
-
-
-firstList : List Picture
-firstList =
-    [ Picture "1.jpg" { width = 880, height = 609 }
-    , Picture "2.jpg" { width = 1200, height = 800 }
-    , Picture "3.jpg" { width = 845, height = 321 }
-    , Picture "4.jpg" { width = 1080, height = 474 }
-    , Picture "5.jpg" { width = 1024, height = 576 }
-    , Picture "6.jpg" { width = 1080, height = 474 }
-    , Picture "7.jpg" { width = 1024, height = 576 }
-    , Picture "8.jpg" { width = 1280, height = 853 }
-    ]
